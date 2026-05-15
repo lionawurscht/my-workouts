@@ -17,7 +17,7 @@
         .card { background: white; border-radius: 20px; box-shadow: 0 4px 15px -3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.05); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .btn-primary { background: #3b82f6; color: white; font-weight: 700; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; font-weight: 700; transition: all 0.2s; border: none; cursor: pointer; }
         .btn-primary:active { transform: scale(0.97); opacity: 0.9; }
         #logModal { backdrop-filter: blur(8px); }
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; padding-right: 2rem; }
@@ -39,7 +39,7 @@
         <!-- Left: Profile & Data -->
         <div class="lg:col-span-1 space-y-6">
             <section class="card p-6">
-                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Profile Settings</h2>
+                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 text-center sm:text-left">Profile Settings</h2>
                 <div class="space-y-3">
                     <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                         <span class="text-xs font-bold text-slate-500">Body Weight (kg)</span>
@@ -50,21 +50,24 @@
             </section>
 
             <section class="card p-6">
-                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Data Import</h2>
+                <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 text-center sm:text-left">Data Import</h2>
                 <textarea id="importArea" 
                     class="w-full h-32 p-4 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none custom-scrollbar mb-4 bg-slate-50/50"
                     placeholder="Paste single workout..."></textarea>
                 <div class="space-y-2">
                     <button id="processBtn" class="w-full btn-primary py-3 rounded-xl shadow-lg shadow-blue-100">
-                        Analyze Workout
+                        ANALYZE WORKOUT
                     </button>
-                    <input type="file" id="csvFileInput" accept=".csv" class="hidden">
-                    <button id="importCsvBtn" class="w-full bg-indigo-600 text-white text-[10px] font-bold py-3 rounded-xl hover:bg-indigo-700 transition">
-                        BULK CSV IMPORT
-                    </button>
+                    
+                    <!-- NATIVE FILE PICKER VIA LABEL FOR PWA RELIABILITY -->
+                    <label for="csvFileInput" class="w-full bg-indigo-600 text-white text-[10px] font-bold py-3 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center cursor-pointer shadow-lg shadow-indigo-100 uppercase">
+                        Bulk CSV Import
+                        <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                    </label>
+
                     <div class="grid grid-cols-2 gap-2">
-                        <button id="showLogBtn" class="bg-slate-900 text-white text-[10px] font-bold py-3 rounded-xl">LOGS</button>
-                        <button id="exportCsvBtn" class="bg-emerald-600 text-white text-[10px] font-bold py-3 rounded-xl">EXPORT DB</button>
+                        <button id="showLogBtn" class="bg-slate-900 text-white text-[10px] font-bold py-3 rounded-xl uppercase">Logs</button>
+                        <button id="exportCsvBtn" class="bg-emerald-600 text-white text-[10px] font-bold py-3 rounded-xl uppercase">Export DB</button>
                     </div>
                 </div>
             </section>
@@ -74,6 +77,326 @@
         <div class="lg:col-span-2 space-y-6">
             <section class="card p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                    <h2 class="font-black text-slate-800 text-xl">Progression</h2>
+                    <div class="flex gap-2">
+                        <select id="regionFilter" class="text-xs border-0 bg-slate-100 p-2 px-4 rounded-full font-bold text-slate-600">
+                            <option value="all">Regions</option>
+                            <option value="Chest">Chest</option>
+                            <option value="Back">Back</option>
+                            <option value="Legs">Legs</option>
+                            <option value="Shoulders">Shoulders</option>
+                            <option value="Core">Core</option>
+                        </select>
+                        <select id="exerciseFilter" class="text-xs border-0 bg-slate-100 p-2 px-4 rounded-full font-bold text-slate-600 max-w-[140px]">
+                            <option value="">Exercise</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="h-[350px] w-full">
+                    <canvas id="mainChart"></canvas>
+                </div>
+                <div class="mt-8 flex flex-wrap justify-center gap-4 border-t border-slate-50 pt-6">
+                    <label class="text-[10px] font-black text-slate-400 flex items-center gap-2 cursor-pointer uppercase tracking-widest">
+                        <input type="radio" name="metric" value="1rm" checked class="w-4 h-4 accent-blue-600"> Est. 1RM
+                    </label>
+                    <label class="text-[10px] font-black text-slate-400 flex items-center gap-2 cursor-pointer uppercase tracking-widest">
+                        <input type="radio" name="metric" value="vol" class="w-4 h-4 accent-blue-600"> Volume
+                    </label>
+                    <label class="text-[10px] font-black text-slate-400 flex items-center gap-2 cursor-pointer uppercase tracking-widest">
+                        <input type="radio" name="metric" value="index" class="w-4 h-4 accent-blue-600"> Strength Index
+                    </label>
+                </div>
+            </section>
+
+            <section class="card p-6">
+                <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center sm:text-left">Training History</h2>
+                <div class="max-h-64 overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <tbody id="historyTable" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Log Modal -->
+    <div id="logModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[32px] w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-6 border-b bg-slate-50/50 flex justify-between items-center">
+                <h3 class="font-black text-slate-900 uppercase text-xs tracking-widest">System Logs</h3>
+                <div class="flex gap-2">
+                    <button id="copyLogBtn" class="bg-blue-600 text-white text-[10px] font-black px-4 py-2 rounded-full uppercase">Copy</button>
+                    <button id="closeLogBtn" class="text-[10px] font-black text-slate-400 border border-slate-200 px-4 py-2 rounded-full uppercase">Close</button>
+                </div>
+            </div>
+            <div id="logContent" class="flex-1 overflow-auto p-6 font-mono text-[11px] bg-slate-900 text-blue-300 whitespace-pre leading-relaxed custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'strong_v8_data';
+        const LOG_KEY = 'strong_v8_logs';
+        const PROFILE_KEY = 'strong_v8_profile';
+        
+        const REGIONS = {
+            'Chest': ['chest', 'bench', 'dip', 'pec', 'pushup'],
+            'Back': ['pull up', 'row', 'lat', 'back', 'extension', 'chin up'],
+            'Legs': ['leg', 'squat', 'glute', 'quad', 'calf', 'hamstring', 'lunge', 'press'],
+            'Shoulders': ['lateral', 'shoulder', 'overhead', 'military', 'press', 'deltoid'],
+            'Core': ['crunch', 'abs', 'plank', 'sit up', 'knee raise']
+        };
+
+        const BODYWEIGHT_LIFTS = ['pull up', 'dip', 'chin up', 'push up', 'lunge', 'squat (bodyweight)', 'sit up', 'crunch'];
+
+        let workouts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        workouts.forEach(w => w.date = new Date(w.date));
+        
+        let bodyWeight = parseFloat(localStorage.getItem(PROFILE_KEY) || '80');
+        const weightInput = document.getElementById('userBodyWeight');
+        if(weightInput) weightInput.value = bodyWeight;
+
+        let chartInstance = null;
+
+        function addLog(msg) {
+            const rawLogs = localStorage.getItem(LOG_KEY);
+            const logs = rawLogs ? JSON.parse(rawLogs) : [];
+            logs.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`);
+            localStorage.setItem(LOG_KEY, JSON.stringify(logs.slice(0, 500)));
+            
+            const container = document.getElementById('logContent');
+            if(container) container.textContent = logs.join('\n');
+        }
+
+        function safeSetText(id, text) {
+            const el = document.getElementById(id);
+            if(el) el.textContent = text;
+        }
+
+        function getRegion(name) {
+            if(!name) return 'Other';
+            const n = name.toLowerCase();
+            for (const [r, keys] of Object.entries(REGIONS)) {
+                if (keys.some(k => n.includes(k))) return r;
+            }
+            return 'Other';
+        }
+
+        function getEffectiveWeight(weight, exerciseName) {
+            if(!exerciseName) return weight;
+            const n = exerciseName.toLowerCase();
+            if (n.includes('assisted')) {
+                return Math.max(0, bodyWeight - Math.abs(weight));
+            }
+            if (BODYWEIGHT_LIFTS.some(l => n.includes(l))) {
+                return bodyWeight + weight;
+            }
+            return weight;
+        }
+
+        function calculate1RM(w, r, name) {
+            const eff = getEffectiveWeight(w, name);
+            return eff * (1 + r / 30);
+        }
+
+        // --- Parsers ---
+
+        function parseCSV(content) {
+            const lines = content.split('\n');
+            const map = {};
+            addLog(`CSV: Processing ${lines.length} lines.`);
+
+            for (let i = 1; i < lines.length; i++) {
+                const rawLine = lines[i].trim();
+                if (!rawLine) continue;
+
+                const c = rawLine.split(';').map(v => v.replace(/"/g, '').trim());
+                if (c.length < 8) continue;
+                
+                const workoutIdx = c[0];
+                const dateRaw = c[1]; 
+                const workoutName = c[2];
+                const exerciseName = c[4];
+                const setOrder = c[5]; 
+                const weight = parseFloat(c[6]) || 0;
+                const reps = parseInt(c[7]) || 0;
+
+                if (setOrder === 'Rest Timer' || isNaN(reps) || reps === 0) continue;
+
+                const cleanDateStr = dateRaw.replace(' ', 'T'); 
+                const d = new Date(cleanDateStr);
+                if (isNaN(d.getTime())) continue;
+
+                if (!map[workoutIdx]) {
+                    map[workoutIdx] = { 
+                        id: `${d.getTime()}-${workoutName}`, 
+                        name: workoutName, 
+                        date: d, 
+                        exercises: [] 
+                    };
+                }
+
+                const workout = map[workoutIdx];
+                let ex = workout.exercises.find(e => e.name === exerciseName);
+                if (!ex) {
+                    ex = { name: exerciseName, region: getRegion(exerciseName), sets: [] };
+                    workout.exercises.push(ex);
+                }
+
+                const typeChar = isNaN(parseInt(setOrder)) ? setOrder.charAt(0).toUpperCase() : 'S';
+                if (typeChar !== 'W') {
+                    ex.sets.push({ type: typeChar, weight, reps });
+                }
+            }
+            return Object.values(map);
+        }
+
+        function updateUI() {
+            try {
+                const sorted = [...workouts].sort((a, b) => b.date - a.date);
+                safeSetText('statWorkouts', workouts.length);
+                
+                const namesSet = new Set();
+                workouts.forEach(w => w.exercises.forEach(e => namesSet.add(e.name)));
+                safeSetText('statExercises', namesSet.size);
+
+                const rf = document.getElementById('regionFilter');
+                const reg = rf ? rf.value : 'all';
+                const exS = document.getElementById('exerciseFilter');
+                if(exS) {
+                    const prev = exS.value;
+                    exS.innerHTML = '<option value="">Exercise</option>';
+                    Array.from(namesSet).sort().forEach(n => {
+                        if (reg === 'all' || getRegion(n) === reg) {
+                            const o = document.createElement('option');
+                            o.value = n; o.textContent = n;
+                            exS.appendChild(o);
+                        }
+                    });
+                    exS.value = prev;
+                }
+
+                const hTable = document.getElementById('historyTable');
+                if(hTable) {
+                    hTable.innerHTML = sorted.slice(0, 25).map(w => `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="py-4 text-[10px] font-black text-slate-300 uppercase">${w.date.toLocaleDateString()}</td>
+                            <td class="py-4 font-bold text-slate-700">${w.name}</td>
+                            <td class="py-4 text-right text-slate-400 font-bold text-[10px]">${w.exercises.length} ITEMS</td>
+                        </tr>
+                    `).join('');
+                }
+                renderChart();
+            } catch (err) {
+                addLog(`UI ERROR: ${err.message}`);
+            }
+        }
+
+        function renderChart() {
+            const chartCanvas = document.getElementById('mainChart');
+            if(!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            const liftEl = document.getElementById('exerciseFilter');
+            const lift = liftEl ? liftEl.value : "";
+            const regionEl = document.getElementById('regionFilter');
+            const region = regionEl ? regionEl.value : "all";
+            const metricEl = document.querySelector('input[name="metric"]:checked');
+            const metric = metricEl ? metricEl.value : "1rm";
+
+            if (chartInstance) chartInstance.destroy();
+
+            let data = [];
+            let lbl = "";
+
+            if (metric === 'index') {
+                // Strength Index logic
+                const pbs = {};
+                workouts.forEach(w => w.exercises.forEach(ex => {
+                    const max = Math.max(...ex.sets.map(s => calculate1RM(s.weight, s.reps, ex.name)));
+                    if (!pbs[ex.name] || max > pbs[ex.name]) pbs[ex.name] = max;
+                }));
+                
+                lbl = `${region === 'all' ? 'Overall' : region} Strength Index`;
+                data = workouts.map(w => {
+                    const rel = w.exercises.filter(ex => region === 'all' || ex.region === region);
+                    if (!rel.length) return null;
+                    const ratios = rel.map(ex => Math.max(...ex.sets.map(s => calculate1RM(s.weight, s.reps, ex.name))) / (pbs[ex.name] || 1));
+                    return { x: w.date, y: (ratios.reduce((a, b) => a + b, 0) / ratios.length) * 100 };
+                }).filter(d => d !== null);
+            } else if (lift) {
+                lbl = lift;
+                data = workouts.map(w => {
+                    const ex = w.exercises.find(e => e.name === lift);
+                    if (!ex) return null;
+                    let val = (metric === '1rm') 
+                        ? Math.max(...ex.sets.map(s => calculate1RM(s.weight, s.reps, lift)))
+                        : ex.sets.reduce((sum, s) => sum + (Math.abs(getEffectiveWeight(s.weight, lift)) * s.reps), 0);
+                    return { x: w.date, y: val };
+                }).filter(d => d !== null);
+            } else { return; }
+
+            if (!data.length) return;
+            data.sort((a, b) => a.x - b.x);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: lbl,
+                        data: data,
+                        borderColor: '#3b82f6',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        pointRadius: 3,
+                        pointBackgroundColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'month' } },
+                        y: { title: { display: true, text: metric === 'index' ? '%' : 'kg' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- Interaction Handlers ---
+
+        const csvIn = document.getElementById('csvFileInput');
+        if(csvIn) {
+            csvIn.onchange = (e) => {
+                const f = e.target.files[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const bulk = parseCSV(ev.target.result);
+                        let count = 0;
+                        bulk.forEach(w => {
+                            if (!workouts.some(x => x.id === w.id)) {
+                                workouts.push(w);
+                                count++;
+                            }
+                        });
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
+                        updateUI();
+                        addLog(`Import: Added ${count} new workouts from CSV.`);
+                    } catch (err) {
+                        addLog(`CRITICAL IMPORT ERROR: ${err.message}`);
+                    }
+                };
+                reader.readAsText(f);
+            };
+        }
+
+        const expCsvBtn = document.getElementById('exportCsvBtn');
+        if(expCsvBtn) {
+            expCsvBtn.onclick = () => {
+                let csv                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <h2 class="font-black text-slate-800 text-xl">Progression</h2>
                     <div class="flex gap-2">
                         <select id="regionFilter" class="text-xs border-0 bg-slate-100 p-2 px-4 rounded-full font-bold text-slate-600">
