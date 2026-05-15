@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strong Tracker PWA</title>
+    <!-- PWA Meta -->
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        :root { --primary: #3b82f6; --bg: #f8fafc; }
+        body { background-color: var(--bg); font-family: 'Inter', sans-serif; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .tab-active { border-bottom: 2px solid var(--primary); color: var(--primary); }
+    </style>
+</head>
+<body class="p-4 max-w-6xl mx-auto pb-24">
+
+    <header class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Workout Tracker</h1>
+            <p id="pwaStatus" class="text-xs text-slate-500">v1.1 - Local Mode</p>
+        </div>
+        <button id="showLogBtn" class="bg-slate-100 p-2 rounded-lg text-slate-600 hover:bg-slate-200 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        </button>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Input Section -->
+        <div class="lg:col-span-1 space-y-6">
+            <section class="card p-5">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Import</h2>
+                <textarea id="importArea" 
+                    class="w-full h-48 p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none custom-scrollbar mb-3"
+                    placeholder="Paste Strong export here..."></textarea>
+                <button id="processBtn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 active:scale-95 transition">
+                    Process Data
+                </button>
+            </section>
+
+            <section class="card p-5">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Dashboard</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <span class="text-xs text-slate-400">Total Workouts</span>
+                        <p id="statWorkouts" class="text-xl font-bold">0</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <span class="text-xs text-slate-400">Unique Lifts</span>
+                        <p id="statExercises" class="text-xl font-bold">0</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Analysis Section -->
+        <div class="lg:col-span-2 space-y-6">
+            <section class="card p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <h2 class="font-bold text-slate-700">Progression</h2>
+                    <div class="flex gap-2">
+                        <select id="regionFilter" class="text-xs border p-1 rounded">
+                            <option value="all">All Regions</option>
+                            <option value="Chest">Chest</option>
+                            <option value="Back">Back</option>
+                            <option value="Legs">Legs</option>
+                            <option value="Shoulders">Shoulders</option>
+                            <option value="Core">Core</option>
+                        </select>
+                        <select id="exerciseFilter" class="text-xs border p-1 rounded max-w-[120px]">
+                            <option value="">Select Lift</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="h-[300px]">
+                    <canvas id="mainChart"></canvas>
+                </div>
+                <div class="mt-4 flex justify-center gap-6">
+                    <label class="text-xs font-medium text-slate-500 flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="metric" value="1rm" checked> Est. 1RM
+                    </label>
+                    <label class="text-xs font-medium text-slate-500 flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="metric" value="vol"> Volume
+                    </label>
+                </div>
+            </section>
+
+            <section class="card p-5 overflow-hidden">
+                <h2 class="font-bold text-slate-700 mb-3">History</h2>
+                <div class="max-h-64 overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <tbody id="historyTable"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Log Modal -->
+    <div id="logModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-2xl h-[80vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold">Parser Debug Log</h3>
+                <div class="flex gap-2">
+                    <button id="copyLogBtn" class="text-xs bg-slate-100 px-3 py-1 rounded">Copy</button>
+                    <button id="closeLogBtn" class="text-xs bg-red-50 text-red-600 px-3 py-1 rounded">Close</button>
+                </div>
+            </div>
+            <div id="logContent" class="flex-1 overflow-auto p-4 font-mono text-[10px] bg-slate-900 text-green-400 whitespace-pre">
+                No logs recorded yet...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'strong_pwa_data';
+        const LOG_KEY = 'strong_pwa_logs';
+        const REGIONS = {
+            'Chest': ['chest', 'bench', 'dip', 'pec', 'pushup'],
+            'Back': ['pull up', 'row', 'lat', 'back', 'extension'],
+            'Legs': ['leg', 'squat', 'glute', 'quad', 'calf', 'hamstring'],
+            'Shoulders': ['lateral', 'shoulder', 'overhead', 'military', 'press'],
+            'Core': ['crunch', 'abs', 'plank', 'sit up']
+        };
+
+        let workouts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        workouts.forEach(w => w.date = new Date(w.date));
+        let chartInstance = null;
+
+        // --- Logger ---
+        function addLog(message) {
+            const logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.unshift(`[${timestamp}] ${message}`);
+            localStorage.setItem(LOG_KEY, JSON.stringify(logs.slice(0, 100)));
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+            document.getElementById('logContent').textContent = logs.join('\n');
+        }
+
+        // --- Parser ---
+        function parseInput(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+            if (lines.length < 2) return null;
+
+            const name = lines[0];
+            const dateStr = lines[1].replace(' at ', ' ');
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return null;
+
+            const workout = { id: `${date.getTime()}-${name}`, name, date, exercises: [] };
+            let currentEx = null;
+
+            addLog(`Starting parse: "${name}" on ${date.toDateString()}`);
+
+            for (let i = 2; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('link.strong.app')) break;
+
+                // Match: "Set 1: 10kg x 10" or "F: 10kg x 10" or "D: 10kg x 10" or "W: 10kg x 10"
+                // Regex handles: (Set \d+|F|D|W): (weight) kg × (reps) reps
+                const setMatch = line.match(/^([S|F|D|W][\w\s]*):\s*([\+\-]?\d+\.?\d*)\s*kg\s*×\s*(\d+)\s*reps/i);
+
+                if (setMatch) {
+                    const typeCode = setMatch[1].charAt(0).toUpperCase();
+                    const weight = parseFloat(setMatch[2]);
+                    const reps = parseInt(setMatch[3]);
+
+                    if (typeCode === 'W') {
+                        addLog(`  Ignored Warmup Set: ${weight}kg x ${reps}`);
+                        continue; 
+                    }
+
+                    if (currentEx) {
+                        currentEx.sets.push({ type: typeCode, weight, reps });
+                        addLog(`  Mapped Set [${typeCode}]: ${weight}kg x ${reps} for ${currentEx.name}`);
+                    }
+                } else {
+                    // Logic to check if this is an exercise name
+                    // If it's not a set and not a long note, it's a title
+                    const isNote = line.length > 40 || line.includes('.') || line.includes(',');
+                    const nextLine = lines[i+1] || "";
+                    if (nextLine.match(/^([S|F|D|W][\w\s]*):/i) || !isNote) {
+                        currentEx = { name: line, sets: [], region: 'Other' };
+                        for (const [r, keywords] of Object.entries(REGIONS)) {
+                            if (keywords.some(k => line.toLowerCase().includes(k))) currentEx.region = r;
+                        }
+                        workout.exercises.push(currentEx);
+                        addLog(`Found Exercise: ${line} (Region: ${currentEx.region})`);
+                    }
+                }
+            }
+            return workout;
+        }
+
+        // --- Logic ---
+        function calculate1RM(w, r) {
+            if (w < 0) return (100 + w) * (1 + r/30); // Assisted logic
+            return w * (1 + r/30);
+        }
+
+        function updateUI() {
+            const sorted = [...workouts].sort((a, b) => b.date - a.date);
+            document.getElementById('statWorkouts').textContent = workouts.length;
+            
+            const liftNames = new Set();
+            workouts.forEach(w => w.exercises.forEach(e => liftNames.add(e.name)));
+            document.getElementById('statExercises').textContent = liftNames.size;
+
+            const regionFilter = document.getElementById('regionFilter').value;
+            const exSelect = document.getElementById('exerciseFilter');
+            const currentEx = exSelect.value;
+            exSelect.innerHTML = '<option value="">Select Lift</option>';
+            
+            Array.from(liftNames).sort().forEach(name => {
+                let r = 'Other';
+                for(let [reg, keys] of Object.entries(REGIONS)) {
+                    if(keys.some(k => name.toLowerCase().includes(k))) r = reg;
+                }
+                if (regionFilter === 'all' || r === regionFilter) {
+                    const opt = document.createElement('option');
+                    opt.value = name; opt.textContent = name;
+                    exSelect.appendChild(opt);
+                }
+            });
+            exSelect.value = currentEx;
+
+            const table = document.getElementById('historyTable');
+            table.innerHTML = sorted.slice(0, 15).map(w => `
+                <tr class="border-b border-slate-50">
+                    <td class="py-3 text-slate-400 text-[10px] uppercase">${w.date.toLocaleDateString()}</td>
+                    <td class="py-3 font-semibold text-slate-700">${w.name}</td>
+                    <td class="py-3 text-right text-slate-400">${w.exercises.length} lifts</td>
+                </tr>
+            `).join('');
+
+            renderChart();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const lift = document.getElementById('exerciseFilter').value;
+            const is1RM = document.querySelector('input[name="metric"]:checked').value === '1rm';
+
+            if (chartInstance) chartInstance.destroy();
+            if (!lift) return;
+
+            const data = [];
+            workouts.forEach(w => {
+                const ex = w.exercises.find(e => e.name === lift);
+                if (ex && ex.sets.length > 0) {
+                    let val = 0;
+                    if (is1RM) {
+                        val = Math.max(...ex.sets.map(s => calculate1RM(s.weight, s.reps)));
+                    } else {
+                        val = ex.sets.reduce((sum, s) => sum + (Math.abs(s.weight) * s.reps), 0);
+                    }
+                    data.push({ x: w.date, y: val });
+                }
+            });
+
+            data.sort((a, b) => a.x - b.x);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: lift,
+                        data: data,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'month' } },
+                        y: { title: { display: true, text: is1RM ? 'Est. 1RM (kg)' : 'Volume (kg)' } }
+                    }
+                }
+            });
+        }
+
+        // --- Events ---
+        document.getElementById('processBtn').addEventListener('click', () => {
+            const workout = parseInput(document.getElementById('importArea').value);
+            if (!workout) return;
+
+            if (workouts.some(w => w.id === workout.id)) {
+                addLog(`Skipped duplicate: ${workout.id}`);
+            } else {
+                workouts.push(workout);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
+                updateUI();
+                addLog(`Success! Workout saved.`);
+            }
+            document.getElementById('importArea').value = '';
+        });
+
+        document.getElementById('showLogBtn').addEventListener('click', () => {
+            document.getElementById('logModal').style.display = 'flex';
+            renderLogs();
+        });
+
+        document.getElementById('closeLogBtn').addEventListener('click', () => {
+            document.getElementById('logModal').style.display = 'none';
+        });
+
+        document.getElementById('copyLogBtn').addEventListener('click', () => {
+            const text = document.getElementById('logContent').textContent;
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            addLog("System: Logs copied to clipboard.");
+        });
+
+        document.getElementById('regionFilter').addEventListener('change', updateUI);
+        document.getElementById('exerciseFilter').addEventListener('change', renderChart);
+        document.querySelectorAll('input[name="metric"]').forEach(i => i.onchange = renderChart);
+
+        window.onload = updateUI;
+
+        // --- PWA Registration ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Registering a simple blob-based SW if it doesn't exist for demo, 
+                // but for GH Pages you should create a sw.js file.
+                navigator.serviceWorker.register('sw.js').catch(() => {
+                    console.log("Offline mode requires sw.js file at root.");
+                });
+            });
+        }
+    </script>
+</body>
+</html>
