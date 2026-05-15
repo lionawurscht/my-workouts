@@ -5,11 +5,13 @@
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#3b82f6",
+  "description": "Progress tracking for Strong App exports",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2964/2964514.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
