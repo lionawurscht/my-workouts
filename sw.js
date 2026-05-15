@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workout-v1';
+const CACHE_NAME = 'workout-tracker-v2';
 const ASSETS = [
   'index.html',
   'manifest.json',
@@ -7,10 +7,29 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns'
 ];
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+// Install Event
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+// Activate Event
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    })
+  );
+});
+
+// Fetch Event (Required for PWA Installability)
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
